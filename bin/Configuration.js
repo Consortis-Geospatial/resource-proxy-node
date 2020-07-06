@@ -14,8 +14,8 @@ const QuickLogger = require('./QuickLogger');
 const UrlFlexParser = require('./UrlFlexParser');
 const xml2js = require('xml2js');
 
-const defaultRequireRootPath = '../';      // when run from npm command line
-const defaultConfigurationRootPath = '../'; // when run from npm command line
+const defaultRequireRootPath = '';      // when run from npm command line
+const defaultConfigurationRootPath = ''; // when run from npm command line
 const defaultConfigurationFilePath = 'conf';
 const defaultConfigurationFileName = 'config';
 const defaultConfigurationTestFileName = 'config-test';

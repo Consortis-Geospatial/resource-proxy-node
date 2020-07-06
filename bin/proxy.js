@@ -68,7 +68,7 @@ var waitingToRunIntegrationTests = false;
  * @param urlRequestedParts the object returns from parseURLRequest()
  * @returns {object} null if no match, otherwise the parsed and corrected URL scheme to proxy to.
  */
-function getServerUrlInfo (urlRequestedParts) {
+function getServerUrlInfo(urlRequestedParts) {
     var i,
         urlParts,
         serverUrls,
@@ -81,7 +81,55 @@ function getServerUrlInfo (urlRequestedParts) {
     // clean and normalize the path we receive so it looks like a standard URL pattern. This usually means
     // translating /host.domain.tld/path/path into something else.
     urlParts = UrlFlexParser.parseAndFixURLParts(urlRequestedParts.proxyPath);
-    serverUrls = configuration.serverUrls;
+    //serverUrls = (configuration.mustMatch === false) ? [urlParts.href] : configuration.serverUrls;
+    
+    if (configuration.mustMatch === false) {
+        var tmpServerUrl={};
+        tmpServerUrl.url=urlParts.href;
+        tmpServerUrl.errorMessage = '';
+        tmpUrlParts = UrlFlexParser.parseAndFixURLParts(urlParts.href);
+        if (tmpUrlParts != null) {
+            tmpServerUrl.protocol = tmpUrlParts.protocol;
+            tmpServerUrl.hostname = tmpUrlParts.hostname;
+            tmpServerUrl.path = tmpUrlParts.path;
+            tmpServerUrl.port = tmpUrlParts.port;
+            tmpServerUrl.query = tmpUrlParts.query;
+            if (tmpServerUrl.protocol == null || tmpServerUrl.protocol == '') {
+                tmpServerUrl.protocol = '*';
+            }
+            if (tmpServerUrl.protocol.charAt(tmpServerUrl.protocol.length - 1) == ':') {
+                tmpServerUrl.protocol = tmpServerUrl.protocol.substr(0, tmpServerUrl.protocol.length - 1);
+            }
+            if (tmpServerUrl.hostname == null || tmpServerUrl.hostname == '') {
+                tmpServerUrl.hostname = tmpServerUrl.path;
+                tmpServerUrl.path = '*';
+            }
+            if (tmpServerUrl.port == null || tmpServerUrl.port == '') {
+                tmpServerUrl.port = '*';
+            }
+        }
+        
+        tmpServerUrl.matchAll = true;
+        tmpServerUrl.rateLimit = 0;
+        tmpServerUrl.rateLimitPeriod = 0;
+        tmpServerUrl.useRateMeter = false;
+        tmpServerUrl.rate = 0;
+        tmpServerUrl.ratePeriodSeconds = 0;
+        tmpServerUrl.isHostRedirect = false;
+        tmpServerUrl.parameterOverride = false;
+        tmpServerUrl.mayRequireToken = false;
+        tmpServerUrl.isUserLogin = false;
+        tmpServerUrl.isAppLogin = false;
+        tmpServerUrl.mayRequireToken = false;
+        tmpServerUrl.totalRequests = 0;
+        tmpServerUrl.firstRequest = 0;
+        tmpServerUrl.lastRequest = 0;
+        serverUrls = [tmpServerUrl];
+    } else {
+        serverUrls = configuration.serverUrls;
+    }
+
+
     urlParts.protocol = urlRequestedParts.protocol;
     if (urlParts.protocol.charAt(urlParts.protocol.length - 1) == ':') {
         urlParts.protocol = urlParts.protocol.substr(0, urlParts.protocol.length - 1);
@@ -109,9 +157,10 @@ function getServerUrlInfo (urlRequestedParts) {
     if (urlParts.query == null) {
         urlParts.query = urlRequestedParts.query;
     }
-    for (i = 0; i < serverUrls.length; i ++) {
+    for (i = 0; i < serverUrls.length; i++) {
         serverUrl = serverUrls[i];
-        if (UrlFlexParser.parsedUrlPartsMatch(urlParts, serverUrl)) { // (matchAll && urlRequested == serverUrl.url) || ( ! matchAll && startsWith(serverUrl.url, urlRequested))) {
+        if (UrlFlexParser.parsedUrlPartsMatch(urlParts, serverUrl) || configuration.mustMatch == false) {
+            //if (UrlFlexParser.parsedUrlPartsMatch(urlParts, serverUrl)) { // (matchAll && urlRequested == serverUrl.url) || ( ! matchAll && startsWith(serverUrl.url, urlRequested))) {
             QuickLogger.logInfoEvent('getServerUrlInfo ' + urlRequestedParts.proxyPath + ' matching ' + serverUrl.url);
             serverUrlMatched = serverUrl;
             break;
@@ -130,18 +179,20 @@ function getServerUrlInfo (urlRequestedParts) {
  *    something we are supposed to service. Matching is not case sensitive.
  * @returns {boolean} true if valid request.
  */
-function isValidURLRequest (uri) {
+function isValidURLRequest(uri) {
     var isMatch = false,
         uriCheckFor = uri.toLowerCase(),
         i;
 
-    if (configuration.mustMatch) {
-        for (i = 0; i < configuration.listenURI.length; i ++) {
+    if (configuration.mustMatch == 'true' || configuration.mustMatch == true) {
+        for (i = 0; i < configuration.listenURI.length; i++) {
             if (uriCheckFor == configuration.listenURI[i].toLowerCase()) {
                 isMatch = true;
                 break;
             }
         }
+    } else {
+        isMatch = true;
     }
     return isMatch;
 }
@@ -166,7 +217,7 @@ function getTokenEndpointFromURL(url) {
         parameters,
         tokenServiceUri = null;
 
-    return new Promise(function(resolvePromise, rejectPromise) {
+    return new Promise(function (resolvePromise, rejectPromise) {
         // Convert request URL into a token endpoint URL. Look for '/rest/' in the requested URL (could be 'rest/services', 'rest/community'...)
         searchFor = defaultAGOLRestPath;
         index = url.indexOf(searchFor);
@@ -181,7 +232,10 @@ function getTokenEndpointFromURL(url) {
                 tokenUrl = url + defaultPortalServicePath;
             }
         }
-        QuickLogger.logInfoEvent(Configuration.getStringTableEntry('Transform url to token endpoint', {url: url, tokenEndpoint: tokenUrl}));
+        QuickLogger.logInfoEvent(Configuration.getStringTableEntry('Transform url to token endpoint', {
+            url: url,
+            tokenEndpoint: tokenUrl
+        }));
         parameters = {
             f: 'json'
         };
@@ -203,7 +257,10 @@ function getTokenEndpointFromURL(url) {
                     if (tokenServiceUri != null) {
                         resolvePromise(tokenServiceUri);
                     } else {
-                        rejectPromise(new Error(Configuration.getStringTableEntry('Unable to transform to token endpoint', {url: url, tokenUrl: tokenUrl})));
+                        rejectPromise(new Error(Configuration.getStringTableEntry('Unable to transform to token endpoint', {
+                            url: url,
+                            tokenUrl: tokenUrl
+                        })));
                     }
                 },
                 function (serverError) {
@@ -211,7 +268,10 @@ function getTokenEndpointFromURL(url) {
                 }
             );
         } else {
-            rejectPromise(new Error(Configuration.getStringTableEntry('Unable to transform to usable URL', {url: url, tokenUrl: tokenUrl})));
+            rejectPromise(new Error(Configuration.getStringTableEntry('Unable to transform to usable URL', {
+                url: url,
+                tokenUrl: tokenUrl
+            })));
         }
     });
 }
@@ -226,12 +286,12 @@ function getTokenEndpointFromURL(url) {
  * @returns {Promise} A promise to resolve with the new token or reject with an error.
  */
 function getNewTokenFromUserNamePasswordLogin(referrer, serverUrlInfo) {
-        var parameters,
-            method = 'POST',
-            tokenServiceUriParts,
-            token;
+    var parameters,
+        method = 'POST',
+        tokenServiceUriParts,
+        token;
 
-    return new Promise(function(resolvePromise, rejectPromise) {
+    return new Promise(function (resolvePromise, rejectPromise) {
         if (ProjectUtilities.isPropertySet(serverUrlInfo, 'username') && ProjectUtilities.isPropertySet(serverUrlInfo, 'password')) {
             parameters = {
                 request: 'getToken',
@@ -276,8 +336,10 @@ function performAppLogin(serverURLInfo) {
     if (serverURLInfo.oauth2Endpoint === undefined || serverURLInfo.oauth2Endpoint == null) {
         serverURLInfo.oauth2Endpoint = defaultOAuthServiceEndPoint;
     }
-    QuickLogger.logInfoEvent(Configuration.getStringTableEntry('Service is secured by', {oauth2Endpoint: serverURLInfo.oauth2Endpoint}));
-    var tokenRequestPromise = new Promise(function(resolvePromise, rejectPromise) {
+    QuickLogger.logInfoEvent(Configuration.getStringTableEntry('Service is secured by', {
+        oauth2Endpoint: serverURLInfo.oauth2Endpoint
+    }));
+    var tokenRequestPromise = new Promise(function (resolvePromise, rejectPromise) {
         var oauth2Endpoint = serverURLInfo.oauth2Endpoint + 'token',
             parameters = {
                 client_id: serverURLInfo.clientId,
@@ -289,15 +351,17 @@ function performAppLogin(serverURLInfo) {
             tokenResponse;
 
         httpRequestPromiseResponse(oauthUrlParts.hostname, oauthUrlParts.pathname, 'POST', oauthUrlParts.protocol == 'https', parameters).then(
-            function(serverResponse) {
+            function (serverResponse) {
                 tokenResponse = ProjectUtilities.findTokenInString(serverResponse, 'token');
                 if (tokenResponse.length > 0) {
                     exchangePortalTokenForServerToken(tokenResponse, serverURLInfo).then(resolvePromise, rejectPromise);
                 } else {
-                    rejectPromise(new Error(Configuration.getStringTableEntry('App login could not get a token', {response: serverResponse})));
+                    rejectPromise(new Error(Configuration.getStringTableEntry('App login could not get a token', {
+                        response: serverResponse
+                    })));
                 }
             },
-            function(error) {
+            function (error) {
                 rejectPromise(error);
             }
         );
@@ -318,7 +382,7 @@ function performUserLogin(serverURLInfo, requestUrl) {
         parameters;
 
     QuickLogger.logInfoEvent(Configuration.getStringTableEntry('Service requires user login', null));
-    var tokenRequestPromise = new Promise(function(resolvePromise, rejectPromise) {
+    var tokenRequestPromise = new Promise(function (resolvePromise, rejectPromise) {
         // if a request is already being made to generate a token, just let it go.
         if (requestUrlParts.pathname.toLowerCase().indexOf('/generatetoken') >= 0) {
             parameters = {
@@ -330,15 +394,17 @@ function performUserLogin(serverURLInfo, requestUrl) {
                 password: serverURLInfo.password
             };
             httpRequestPromiseResponse(requestUrlParts.hostname, requestUrlParts.pathname, 'POST', requestUrlParts.protocol == 'https', parameters).then(
-                function(serverResponse) {
+                function (serverResponse) {
                     tokenResponse = ProjectUtilities.findTokenInString(serverResponse, 'token');
                     if (tokenResponse.length > 0) {
                         resolvePromise(tokenResponse);
                     } else {
-                        rejectPromise(new Error(Configuration.getStringTableEntry('User login could not get a token', {response: serverResponse})));
+                        rejectPromise(new Error(Configuration.getStringTableEntry('User login could not get a token', {
+                            response: serverResponse
+                        })));
                     }
                 },
-                function(error) {
+                function (error) {
                     rejectPromise(error);
                 }
             );
@@ -356,13 +422,15 @@ function performUserLogin(serverURLInfo, requestUrl) {
  * @returns {Promise} Resolves with the new token, or rejects with an error.
  */
 function getNewTokenIfCredentialsAreSpecified(serverURLInfo, requestUrl) {
-    return new Promise(function(resolvePromise, rejectPromise) {
+    return new Promise(function (resolvePromise, rejectPromise) {
         if (serverURLInfo.isAppLogin) {
             performAppLogin(serverURLInfo).then(resolvePromise, rejectPromise);
         } else if (serverURLInfo.isUserLogin) {
             performUserLogin(serverURLInfo, requestUrl).then(resolvePromise, rejectPromise);
         } else {
-            rejectPromise(new Error(Configuration.getStringTableEntry('No method configured to authenticate', {url: serverURLInfo.url})));
+            rejectPromise(new Error(Configuration.getStringTableEntry('No method configured to authenticate', {
+                url: serverURLInfo.url
+            })));
         }
     });
 }
@@ -374,7 +442,7 @@ function getNewTokenIfCredentialsAreSpecified(serverURLInfo, requestUrl) {
  * @returns {Promise} The promise to return the token from the server, once it arrives.
  */
 function exchangePortalTokenForServerToken(portalToken, serverURLInfo) {
-    var responsePromise = new Promise(function(resolvePromise, rejectPromise) {
+    var responsePromise = new Promise(function (resolvePromise, rejectPromise) {
         var parameters = {
                 token: portalToken,
                 serverURL: serverURLInfo.url,
@@ -387,15 +455,17 @@ function exchangePortalTokenForServerToken(portalToken, serverURLInfo) {
             tokenResponse;
 
         httpRequestPromiseResponse(host, path, 'POST', UrlFlexParser.getBestMatchProtocol('*', oauthUrlParts, serverURLInfo) == 'https', parameters).then(
-            function(serverResponse) {
+            function (serverResponse) {
                 tokenResponse = ProjectUtilities.findTokenInString(serverResponse, 'token');
                 if (tokenResponse.length > 0) {
                     resolvePromise(tokenResponse);
                 } else {
-                    rejectPromise(new Error(Configuration.getStringTableEntry('Could not get a token from server response', {response: serverResponse})));
+                    rejectPromise(new Error(Configuration.getStringTableEntry('Could not get a token from server response', {
+                        response: serverResponse
+                    })));
                 }
             },
-            function(error) {
+            function (error) {
                 rejectPromise(error);
             }
         );
@@ -415,7 +485,7 @@ function exchangePortalTokenForServerToken(portalToken, serverURLInfo) {
  * @return {Promise} You get a promise that will resolve with the server response or fail with an error.
  */
 function httpRequestPromiseResponse(host, path, method, useHttps, parameters) {
-    var responsePromise = new Promise(function(resolvePromise, rejectPromise) {
+    var responsePromise = new Promise(function (resolvePromise, rejectPromise) {
         var httpRequestOptions = {
                 hostname: host,
                 path: path,
@@ -427,7 +497,7 @@ function httpRequestPromiseResponse(host, path, method, useHttps, parameters) {
             responseBody = '',
             request;
 
-        var handleServerResponse = function(response) {
+        var handleServerResponse = function (response) {
             responseStatus = response.statusCode;
             if (responseStatus > 399) {
                 rejectPromise(new Error('Error ' + responseStatus + ' on ' + host + path));
@@ -462,7 +532,7 @@ function httpRequestPromiseResponse(host, path, method, useHttps, parameters) {
             httpRequestOptions.protocol = 'http:';
             request = http.request(httpRequestOptions, handleServerResponse);
         }
-        request.on('error', function(error) {
+        request.on('error', function (error) {
             rejectPromise(error);
         });
         request.end(requestBody);
@@ -480,7 +550,7 @@ function httpRequestPromiseResponse(host, path, method, useHttps, parameters) {
  * @param response - the http server response object.
  * @return {boolean} true if the request was processed, false if we got an error.
  */
-function processValidatedRequest (urlRequestedParts, serverURLInfo, referrer, request, response) {
+function processValidatedRequest(urlRequestedParts, serverURLInfo, referrer, request, response) {
     var statusCode = 200,
         statusMessage,
         proxyRequest,
@@ -501,7 +571,7 @@ function processValidatedRequest (urlRequestedParts, serverURLInfo, referrer, re
             if (serverURLInfo.firstRequest == 0) {
                 serverURLInfo.firstRequest = serverURLInfo.lastRequest;
             }
-            serverURLInfo.totalRequests ++;
+            serverURLInfo.totalRequests++;
 
             // Combine query parameters of the current request with the configuration.
             parameters = UrlFlexParser.combineParameters(request, urlRequestedParts, serverURLInfo, serverURLInfo.parameterOverride);
@@ -513,7 +583,7 @@ function processValidatedRequest (urlRequestedParts, serverURLInfo, referrer, re
                 ProjectUtilities.addIfPropertyNotSet(parameters, 'token', serverURLInfo.token);
             }
 
-            if ( ! ProjectUtilities.isEmptyObject(parameters)) {
+            if (!ProjectUtilities.isEmptyObject(parameters)) {
                 parametersCombined = ProjectUtilities.objectToQueryString(parameters);
             }
             if (serverURLInfo.isHostRedirect) {
@@ -545,15 +615,15 @@ function processValidatedRequest (urlRequestedParts, serverURLInfo, referrer, re
             // proxied service
             request.url = proxyRequest;
             request.headers.host = hostname;
-
-
+            
 
             // TODO: if a token based request we should check if the token we have is any good and if not generate a new token
 
 
             // TODO: Not really sure this worked if the proxy generates an error as we are not catching any error from the proxied service
-            validProcessedRequests ++;
+            validProcessedRequests++;
             QuickLogger.logInfoEvent("==> Issuing proxy request [" + request.method + "]" + request.url + " for " + proxyRequest);
+            QuickLogger.logInfoEvent("==> request.url After: [" + proxyRequest + "]");
             proxyServer.web(request, response, {
                 target: proxyRequest,
                 ignorePath: true
@@ -565,9 +635,14 @@ function processValidatedRequest (urlRequestedParts, serverURLInfo, referrer, re
         }
     } else {
         statusCode = 403;
-        statusMessage = Configuration.getStringTableEntry('Proxy has not been set up for', {referrer: referrer, path: urlRequestedParts.listenPath});
+        statusMessage = Configuration.getStringTableEntry('Proxy has not been set up for', {
+            referrer: referrer,
+            path: urlRequestedParts.listenPath
+        });
         if (QuickLogger.ifLogLevelGreaterOrEqual('INFO')) {
-            statusMessage += Configuration.getStringTableEntry('Proxy has not been set up for extra', {path: urlRequestedParts.listenPath});
+            statusMessage += Configuration.getStringTableEntry('Proxy has not been set up for extra', {
+                path: urlRequestedParts.listenPath
+            });
         }
         sendErrorResponse(urlRequestedParts.proxyPath, response, statusCode, statusMessage);
     }
@@ -579,7 +654,7 @@ function processValidatedRequest (urlRequestedParts, serverURLInfo, referrer, re
  * @param referrer {string} - who asked for it.
  * @param response {object} - http response object.
  */
-function sendPingResponse (referrer, response) {
+function sendPingResponse(referrer, response) {
     var statusCode = 200,
         responseBody = {
             "Proxy Version": proxyVersion,
@@ -588,7 +663,7 @@ function sendPingResponse (referrer, response) {
             "referrer": referrer
         };
     sendJSONResponse(response, statusCode, responseBody);
-    validProcessedRequests ++;
+    validProcessedRequests++;
     QuickLogger.logInfoEvent("Ping request from " + referrer);
 }
 
@@ -597,7 +672,7 @@ function sendPingResponse (referrer, response) {
  * @param request {object} - http request object.
  * @param response {object} - http response object.
  */
-function sendEchoResponse (referrer, request, response) {
+function sendEchoResponse(referrer, request, response) {
     QuickLogger.logInfoEvent("Echo request from " + referrer);
     request.pipe(response);
 }
@@ -607,7 +682,7 @@ function sendEchoResponse (referrer, request, response) {
  * @param referrer - who asked for it.
  * @param response - http response object.
  */
-function sendStatusResponse (referrer, response) {
+function sendStatusResponse(referrer, response) {
     try {
         var timeNow = new Date(),
             i,
@@ -628,9 +703,9 @@ function sendStatusResponse (referrer, response) {
                 "URL Stats": [],
                 "Rate Meter": []
             };
-        for (i = 0; i < serverUrls.length; i ++) {
+        for (i = 0; i < serverUrls.length; i++) {
             serverUrl = serverUrls[i];
-            if ( ! serverUrl.useRateMeter) {
+            if (!serverUrl.useRateMeter) {
                 responseObject['URL Stats'].push({
                     'url': serverUrl.url.substring(0, 100) + (serverUrl.url.length > 100 ? '...' : ''),
                     'total': serverUrl.totalRequests,
@@ -649,9 +724,13 @@ function sendStatusResponse (referrer, response) {
             });
         }
     } catch (exception) {
-        sendErrorResponse('status', response, 500, Configuration.getStringTableEntry('System error processing request', {message: exception.toLocaleString()}));
+        sendErrorResponse('status', response, 500, Configuration.getStringTableEntry('System error processing request', {
+            message: exception.toLocaleString()
+        }));
     }
-    QuickLogger.logInfoEvent(Configuration.getStringTableEntry('Status request from', {referrer: referrer}));
+    QuickLogger.logInfoEvent(Configuration.getStringTableEntry('Status request from', {
+        referrer: referrer
+    }));
 }
 
 /**
@@ -659,7 +738,7 @@ function sendStatusResponse (referrer, response) {
  * @param responseObject {Object} we iterate this object as the information to report.
  * @param response {Object} the http response object to write to.
  */
-function reportHTMLStatusResponse (responseObject, response) {
+function reportHTMLStatusResponse(responseObject, response) {
     var responseBody,
         key,
         value,
@@ -677,7 +756,7 @@ function reportHTMLStatusResponse (responseObject, response) {
             value = responseObject[key];
             if (value instanceof Array) { // Arrays get displayed as tables
                 responseBody += '<p><strong>' + key + ':</strong></p><table>';
-                for (i = 0; i < value.length; i ++) {
+                for (i = 0; i < value.length; i++) {
                     tableRow = '<tr>';
                     row = value[i];
                     for (rowKey in row) {
@@ -715,7 +794,7 @@ function reportHTMLStatusResponse (responseObject, response) {
  * @param statusCode - a valid http status code (e.g. 200, 404, etc)
  * @param responseObject - a javascript object that is converted to JSON and sent back as the body.
  */
-function sendJSONResponse (response, statusCode, responseObject) {
+function sendJSONResponse(response, statusCode, responseObject) {
     var responseBody = JSON.stringify(responseObject);
     response.writeHead(statusCode, {
         'Content-Length': Buffer.byteLength(responseBody),
@@ -733,7 +812,7 @@ function sendJSONResponse (response, statusCode, responseObject) {
  * @param errorCode the error code we want to report to the caller.
  * @param errorMessage the error message we want to report to the caller.
  */
-function sendErrorResponse (urlRequested, response, errorCode, errorMessage) {
+function sendErrorResponse(urlRequested, response, errorCode, errorMessage) {
     var responseBody = {
         error: {
             code: errorCode,
@@ -743,8 +822,12 @@ function sendErrorResponse (urlRequested, response, errorCode, errorMessage) {
         request: urlRequested
     };
     sendJSONResponse(response, errorCode, responseBody);
-    errorProcessedRequests ++;
-    QuickLogger.logErrorEvent(Configuration.getStringTableEntry('Request error with info', {error: errorMessage, code: errorCode, url: urlRequested}));
+    errorProcessedRequests++;
+    QuickLogger.logErrorEvent(Configuration.getStringTableEntry('Request error with info', {
+        error: errorMessage,
+        code: errorCode,
+        url: urlRequested
+    }));
 }
 
 /**
@@ -768,12 +851,19 @@ function checkRateMeterThenProcessValidatedRequest(referrer, requestParts, serve
                 processValidatedRequest(requestParts, serverURLInfo, referrer, request, response);
             } else {
                 statusCode = 429; // TODO: or is it 402? or 420?
-                QuickLogger.logWarnEvent(Configuration.getStringTableEntry('RateMeter blocking access to', {url: serverURLInfo.url, referrer: referrer}));
+                QuickLogger.logWarnEvent(Configuration.getStringTableEntry('RateMeter blocking access to', {
+                    url: serverURLInfo.url,
+                    referrer: referrer
+                }));
                 sendErrorResponse(request.url, response, statusCode, Configuration.getStringTableEntry('Metered requests exceeded', null));
             }
         }, function (error) {
             statusCode = 420;
-            QuickLogger.logErrorEvent(Configuration.getStringTableEntry('RateMeter failed on', {url: serverURLInfo.url, referrer: referrer, error: error.toString()}));
+            QuickLogger.logErrorEvent(Configuration.getStringTableEntry('RateMeter failed on', {
+                url: serverURLInfo.url,
+                referrer: referrer,
+                error: error.toString()
+            }));
             sendErrorResponse(request.url, response, statusCode, Configuration.getStringTableEntry('Metered resource status failed', null));
         });
     } else {
@@ -793,7 +883,7 @@ function processRequest(request, response) {
         serverURLInfo,
         referrer;
 
-    attemptedRequests ++;
+    attemptedRequests++;
     if (requestParts != null) {
         referrer = request.headers['referer'];
         if (referrer == null || referrer.length < 1) {
@@ -801,7 +891,10 @@ function processRequest(request, response) {
         } else {
             referrer = referrer.toLowerCase().trim();
         }
-        QuickLogger.logInfoEvent(Configuration.getStringTableEntry('New request from', {referrer: referrer, path: requestParts.proxyPath}));
+        QuickLogger.logInfoEvent(Configuration.getStringTableEntry('New request from', {
+            referrer: referrer,
+            path: requestParts.proxyPath
+        }));
         referrer = UrlFlexParser.validatedReferrerFromReferrer(referrer, configuration.allowedReferrers);
         if (referrer != null) {
             if (requestParts.listenPath == configuration.localPingURL) {
@@ -820,7 +913,7 @@ function processRequest(request, response) {
                         } else {
                             processValidatedRequest(requestParts, serverURLInfo, referrer, request, response);
                         }
-                    } else if (! configuration.mustMatch) {
+                    } else if (!configuration.mustMatch) {
                         // TODO: I think we should remove this feature
                         // when mustMatch is false we accept absolutely anything (why, again, are we doing this?) so blindly forward the request on and cross your fingers someone actually thinks this is a good idea.
                         serverURLInfo = UrlFlexParser.parseAndFixURLParts(requestParts.listenPath);
@@ -835,7 +928,9 @@ function processRequest(request, response) {
                         };
                         processValidatedRequest(requestParts, serverURLInfo, referrer, request, response);
                     } else {
-                        sendErrorResponse(request.url, response, 404, Configuration.getStringTableEntry('Resource not found', {url: request.url}));
+                        sendErrorResponse(request.url, response, 404, Configuration.getStringTableEntry('Resource not found', {
+                            url: request.url
+                        }));
                     }
                 } else {
                     // try to serve a static resource. proxyServeFile will always send its own response, including 404 if resource not found.
@@ -843,7 +938,9 @@ function processRequest(request, response) {
                 }
             }
         } else {
-            sendErrorResponse(request.url, response, 403, Configuration.getStringTableEntry('Referrer not allowed', {referrer: referrer}));
+            sendErrorResponse(request.url, response, 403, Configuration.getStringTableEntry('Referrer not allowed', {
+                referrer: referrer
+            }));
         }
     } else {
         sendErrorResponse(request.url, response, 403, Configuration.getStringTableEntry('Invalid request 403', null));
@@ -858,8 +955,16 @@ function proxyResponseError(error, proxyRequest, proxyResponse, proxyTarget) {
     if (proxyResponse.status === undefined) {
         proxyResponse.status = 502;
     }
-    QuickLogger.logErrorEvent(Configuration.getStringTableEntry('proxyResponseError caught error', {code: error.code, description: error.description, target: proxyTarget, status: proxyResponse.status}));
-    sendErrorResponse(proxyRequest.url, proxyResponse, proxyResponse.status, Configuration.getStringTableEntry('Proxy request error', {code: error.code, description: error.description}));
+    QuickLogger.logErrorEvent(Configuration.getStringTableEntry('proxyResponseError caught error', {
+        code: error.code,
+        description: error.description,
+        target: proxyTarget,
+        status: proxyResponse.status
+    }));
+    sendErrorResponse(proxyRequest.url, proxyResponse, proxyResponse.status, Configuration.getStringTableEntry('Proxy request error', {
+        code: error.code,
+        description: error.description
+    }));
 }
 
 /**
@@ -868,7 +973,9 @@ function proxyResponseError(error, proxyRequest, proxyResponse, proxyTarget) {
  * @param proxyError
  */
 function proxyErrorHandler(proxyError, proxyRequest, proxyResponse) {
-    sendErrorResponse(proxyRequest.url, proxyResponse, 500, Configuration.getStringTableEntry('Proxy error 500', {error: proxyError.toString()}));
+    sendErrorResponse(proxyRequest.url, proxyResponse, 500, Configuration.getStringTableEntry('Proxy error 500', {
+        error: proxyError.toString()
+    }));
 }
 
 /**
@@ -894,7 +1001,9 @@ function proxyRequestRewrite(proxyReq, proxyRequest, proxyResponse, options) {
  */
 function proxyResponseRewrite(serviceResponse, proxyRequest, proxyResponse) {
     QuickLogger.logInfoEvent("proxyResponseRewrite opportunity to alter response before writing it.");
-    var serverUrlInfo = proxyRequest.serverUrlInfo || {mayRequireToken: false};
+    var serverUrlInfo = proxyRequest.serverUrlInfo || {
+        mayRequireToken: false
+    };
     if (serviceResponse.headers['content-type'] !== undefined) {
         var lookFor = 'application/vnd.ogc.wms_xml';
         var replaceWith = 'text/xml';
@@ -948,7 +1057,9 @@ function proxyServeFile(request, response) {
 
         if (action == '/') {
             responseStatus = 404;
-            responseMessage = Configuration.getStringTableEntry('Resource not found', {url: action});
+            responseMessage = Configuration.getStringTableEntry('Resource not found', {
+                url: action
+            });
         } else if (configuration.staticFilePath != null) {
             // serve static assets requests from the local folder.
             if (staticFileServer == null) {
@@ -1024,7 +1135,7 @@ function checkServerResponseForMissingToken(proxyResponse, contentType, checkFor
             console.log('JSON.parse error:', e.message);
             console.log('JSON.parse error from: ' + decodedBody || body);
         }
-        if ( ! tokenIsMissing) {
+        if (!tokenIsMissing) {
             // Call the response method
             responseWrite.call(proxyResponse, body);
             responseEnd.call(proxyResponse);
@@ -1040,7 +1151,7 @@ function checkServerResponseForMissingToken(proxyResponse, contentType, checkFor
  * Run the server. This function never returns. You have to kill the process, such as ^C or kill.
  * All connection requests are forwarded to processRequest(q, r).
  */
-function startServer () {
+function startServer() {
     var httpsOptions,
         hostName,
         proxyServerOptions = {};
@@ -1076,11 +1187,11 @@ function startServer () {
         }
         if (httpServer != null) {
             httpServer.on('clientError', function (error, socket) {
-                errorProcessedRequests ++;
+                errorProcessedRequests++;
                 socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
             });
             httpServer.on('error', function (error) {
-                errorProcessedRequests ++;
+                errorProcessedRequests++;
                 cannotListen(error);
             });
             proxyServer = new httpProxy.createProxyServer(proxyServerOptions);
@@ -1092,13 +1203,14 @@ function startServer () {
             // Integration tests require a fully parsed configuration and a started server, so they were delayed until this point.
             if (waitingToRunIntegrationTests || Configuration.isTestMode()) {
                 __runIntegrationTests();
-                if ( ! Configuration.isTestMode()) {
+                if (!Configuration.isTestMode()) {
                     QuickLogger.logInfoEvent(Configuration.getStringTableEntry('Integration tests complete shutting down from test', null));
                     process.exit();
                 }
                 QuickLogger.logInfoEvent(Configuration.getStringTableEntry('Integration tests complete starting server', null));
             }
-
+            
+              
             // Begin listening for client connections
             try {
                 httpServer.listen(configuration.port);
@@ -1109,7 +1221,9 @@ function startServer () {
             QuickLogger.logErrorEvent(Configuration.getStringTableEntry('Proxy server not created', null));
         }
     } catch (exception) {
-        QuickLogger.logErrorEvent(Configuration.getStringTableEntry('Proxy server startup exception', {exception: exception.toLocaleString()}));
+        QuickLogger.logErrorEvent(Configuration.getStringTableEntry('Proxy server startup exception', {
+            exception: exception.toLocaleString()
+        }));
     }
 }
 
@@ -1118,7 +1232,9 @@ function startServer () {
  * @param reason {Error} A message indicating why the configuration failed.
  */
 function cannotStartServer(reason) {
-    QuickLogger.logErrorEvent(Configuration.getStringTableEntry('Server not started invalid config', {reason: reason.message}));
+    QuickLogger.logErrorEvent(Configuration.getStringTableEntry('Server not started invalid config', {
+        reason: reason.message
+    }));
     process.exit();
 }
 
@@ -1127,7 +1243,9 @@ function cannotStartServer(reason) {
  * @param reason {Error} A message indicating why listen failed.
  */
 function cannotListen(reason) {
-    QuickLogger.logErrorEvent(Configuration.getStringTableEntry('Server not started due to', {reason: reason.message}));
+    QuickLogger.logErrorEvent(Configuration.getStringTableEntry('Server not started due to', {
+        reason: reason.message
+    }));
     process.exit();
 }
 
@@ -1136,8 +1254,10 @@ function cannotListen(reason) {
  * @param options
  * @param error
  */
-function exitHandler (options, error) {
-    QuickLogger.logEventImmediately(QuickLogger.LOGLEVEL.INFO.value, Configuration.getStringTableEntry('Stopping server via', {reason: options.reason}));
+function exitHandler(options, error) {
+    QuickLogger.logEventImmediately(QuickLogger.LOGLEVEL.INFO.value, Configuration.getStringTableEntry('Stopping server via', {
+        reason: options.reason
+    }));
     if (rateMeter != null) {
         rateMeter.stop();
         rateMeter = null;
@@ -1161,9 +1281,17 @@ function configProcessHandlers(process) {
     process.stdin.resume(); // so the program will not close instantly
 
     // Set handler for app shutdown event
-    process.on('exit', exitHandler.bind(null, {reason: "normal exit"}));
-    process.on('SIGINT', exitHandler.bind(null, {exit: true, reason: "app terminated via SIGINT"}));
-    process.on('uncaughtException', exitHandler.bind(null, {exit: true, reason: "uncaught exception"}));
+    process.on('exit', exitHandler.bind(null, {
+        reason: "normal exit"
+    }));
+    process.on('SIGINT', exitHandler.bind(null, {
+        exit: true,
+        reason: "app terminated via SIGINT"
+    }));
+    process.on('uncaughtException', exitHandler.bind(null, {
+        exit: true,
+        reason: "uncaught exception"
+    }));
 }
 
 /**
@@ -1299,20 +1427,32 @@ function __runIntegrationTests() {
 
     targetStr = 'Loading configuration from';
     testStr = 'this is a test file name';
-    result = Configuration.getStringTableEntry(targetStr, {file: testStr});
+    result = Configuration.getStringTableEntry(targetStr, {
+        file: testStr
+    });
     QuickLogger.logInfoEvent('getStringTableEntry result=' + result);
 
-    httpRequestPromiseResponse("www.enginesis.com", "/index.php", "POST", false, {fn: "ESRBTypeList", site_id: 100, response: "json", user_id: 9999}).then(function(responseBody) {
+    httpRequestPromiseResponse("www.enginesis.com", "/index.php", "POST", false, {
+        fn: "ESRBTypeList",
+        site_id: 100,
+        response: "json",
+        user_id: 9999
+    }).then(function (responseBody) {
         result = responseBody;
         console.log('httpRequestPromiseResponse POST ' + result);
-    }, function(error) {
+    }, function (error) {
         console.log('httpRequestPromiseResponse POST error ' + error.message);
     });
 
-    httpRequestPromiseResponse("www.enginesis.com", "/index.php", "GET", false, {fn: "ESRBTypeList", site_id: 100, response: "json", user_id: 9999}).then(function(responseBody) {
+    httpRequestPromiseResponse("www.enginesis.com", "/index.php", "GET", false, {
+        fn: "ESRBTypeList",
+        site_id: 100,
+        response: "json",
+        user_id: 9999
+    }).then(function (responseBody) {
         result = responseBody;
         console.log('httpRequestPromiseResponse GET ' + result);
-    }, function(error) {
+    }, function (error) {
         console.log('httpRequestPromiseResponse GET error ' + error.message);
     });
 
@@ -1320,10 +1460,10 @@ function __runIntegrationTests() {
     urlParts = UrlFlexParser.parseURLRequest(testStr, configuration.listenURI);
     serverUrlInfo = getServerUrlInfo(urlParts);
     getTokenEndpointFromURL(serverUrlInfo.url).then(
-        function(endpoint) {
+        function (endpoint) {
             console.log('getTokenEndpointFromURL got ' + endpoint);
         },
-        function(error) {
+        function (error) {
             console.log('getTokenEndpointFromURL fails with ' + error.message);
         }
     );
@@ -1331,11 +1471,11 @@ function __runIntegrationTests() {
     testStr = 'http://developers.arcgis.com';
     token = null;
     getNewTokenFromUserNamePasswordLogin(testStr, serverUrlInfo).then(
-        function(tokenResponse) {
+        function (tokenResponse) {
             token = tokenResponse;
             console.log('getNewTokenFromUserNamePasswordLogin got ' + token);
         },
-        function(error) {
+        function (error) {
             console.log('getNewTokenFromUserNamePasswordLogin fails with ' + error.message);
         }
     );

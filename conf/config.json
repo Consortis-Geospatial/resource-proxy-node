@@ -6,7 +6,7 @@
         "mustMatch": true,
         "logLevel": "ALL",
         "logToConsole": true,
-        "logFile": "arcgis-proxy-node.log",
+        "logFile": "citimap-proxy-node.log",
         "logFilePath": "./",
         "listenURI": ["/proxy", "/sproxy"],
         "pingPath": "/ping",

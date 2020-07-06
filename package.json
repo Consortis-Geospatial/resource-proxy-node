@@ -35,10 +35,10 @@
         "os": "latest",
         "path.join": "latest",
         "sqlite3": "latest",
-        "xml2js": "^0.4.17"
+        "xml2js": "^0.4.17",
+        "cors": "^2.8.5"
     },
-    "devDependencies": {
-    },
+    "devDependencies": {},
     "scripts": {
         "start": "node bin/proxy.js",
         "test": "node bin/test.js"
