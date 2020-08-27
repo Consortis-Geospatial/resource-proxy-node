@@ -11,12 +11,13 @@
  *
  */
 
-const sqlite3 = require('sqlite3');
-const fs = require('fs');
+const sqlite3 = require('sqlite3'),
+    fs = require('fs'),
+    configuration = require('./Configuration').configuration;
 
 
 module.exports = function (serverURLs, allowedReferrers, logFunction) {
-    var dbName = "proxy.sqlite";
+    var dbName = `${configuration.logFilePath}/proxy.sqlite`;
     var dbFileAccessMode = fs.constants.R_OK | fs.constants.W_OK;
     var dbConnection = null;
     var isNewDatabase = false;
@@ -80,15 +81,15 @@ module.exports = function (serverURLs, allowedReferrers, logFunction) {
             referrerIndex;
 
         if (dbConnection != null) {
-            dbConnection.serialize(function() {
+            dbConnection.serialize(function () {
                 dbConnection.run('CREATE TABLE IF NOT EXISTS ips (id INTEGER PRIMARY KEY, url VARCHAR(255) not null, referrer VARCHAR(255) not null, count INTEGER not null default(0), rate INTEGER not null default(0), time INTEGER not null default(0), total INTEGER not null default(0), rejected INTEGER not null default(0))');
                 dbConnection.run('CREATE UNIQUE INDEX IF NOT EXISTS url_referrer ON ips (url, referrer)');
                 dbConnection.run('DELETE from ips');
                 sql = 'INSERT OR IGNORE INTO ips (url, referrer, count, rate, time, total, rejected) VALUES (?, ?, ?, ?, ?, ?, ?)';
-                for (serverIndex = 0; serverIndex < serverURLConfig.length; serverIndex ++) {
+                for (serverIndex = 0; serverIndex < serverURLConfig.length; serverIndex++) {
                     serverURL = serverURLConfig[serverIndex];
                     if (serverURL.useRateMeter) {
-                        for (referrerIndex = 0; referrerIndex < serverAllowedReferrers.length; referrerIndex ++) {
+                        for (referrerIndex = 0; referrerIndex < serverAllowedReferrers.length; referrerIndex++) {
                             params = [serverURL.url, serverAllowedReferrers[referrerIndex].referrer, 0, serverURL.rate, timeOfAccess, 0, 0];
                             dbConnection.run(sql, params);
                         }
@@ -115,13 +116,13 @@ module.exports = function (serverURLs, allowedReferrers, logFunction) {
         serverURLConfig = newServerUrlTable;
         serverAllowedReferrers = newReferrers;
         if (dbConnection != null) {
-            dbConnection.serialize(function() {
+            dbConnection.serialize(function () {
                 dbConnection.run('TRUNCATE TABLE ips');
                 sql = 'INSERT OR IGNORE INTO ips (url, referrer, count, rate, time, total, rejected) VALUES (?, ?, ?, ?, ?, ?, ?)';
-                for (serverIndex = 0; serverIndex < newServerUrlTable.length; serverIndex ++) {
+                for (serverIndex = 0; serverIndex < newServerUrlTable.length; serverIndex++) {
                     serverURL = newServerUrlTable[serverIndex];
                     if (serverURL.useRateMeter) {
-                        for (referrerIndex = 0; referrerIndex < newReferrers.length; referrerIndex ++) {
+                        for (referrerIndex = 0; referrerIndex < newReferrers.length; referrerIndex++) {
                             params = [serverURL.url, newReferrers[referrerIndex], 0, serverURL.rate, timeOfAccess, 0, 0];
                             dbConnection.run(sql, params);
                         }
@@ -168,7 +169,7 @@ module.exports = function (serverURLs, allowedReferrers, logFunction) {
             params,
             promise;
 
-        promise = new Promise(function(resolvePromise, rejectPromise) {
+        promise = new Promise(function (resolvePromise, rejectPromise) {
             if (dbConnection == null) {
                 openDatabase();
             }
@@ -203,7 +204,7 @@ module.exports = function (serverURLs, allowedReferrers, logFunction) {
             sql,
             params;
 
-        promise = new Promise(function(resolvePromise, rejectPromise) {
+        promise = new Promise(function (resolvePromise, rejectPromise) {
             if (dbConnection == null) {
                 openDatabase();
             }
@@ -241,7 +242,7 @@ module.exports = function (serverURLs, allowedReferrers, logFunction) {
             promise,
             isOK = false;
 
-        promise = new Promise(function(resolvePromise, rejectPromise) {
+        promise = new Promise(function (resolvePromise, rejectPromise) {
             if (dbConnection != null) {
                 // read db by url to get current data (since other threads may also be updating it.)
                 // check if count exceeded
@@ -267,7 +268,7 @@ module.exports = function (serverURLs, allowedReferrers, logFunction) {
                                     newCount = queryResult.count + 1;
                                     refreshTime = queryResult.time;
                                     isOK = true;
-                                // } else {
+                                    // } else {
                                     // already gave out the limit for the current time window
                                     // isOK = false;
                                 }
@@ -313,7 +314,7 @@ module.exports = function (serverURLs, allowedReferrers, logFunction) {
          * on connection resource for the node thread we are running on. If start() is not called then each
          * call to isExceeded will open and close its own database connection.
          */
-        start: function() {
+        start: function () {
             openDatabase();
         },
 
@@ -321,7 +322,7 @@ module.exports = function (serverURLs, allowedReferrers, logFunction) {
          * Call stop when shutting down or monitoring is no longer needed. This closes the database connection
          * and frees any resources consumed by this object.
          */
-        stop: function() {
+        stop: function () {
             closeDatabase();
         },
 
@@ -346,7 +347,7 @@ module.exports = function (serverURLs, allowedReferrers, logFunction) {
          * @param serverUrls
          * @returns {*}
          */
-        refreshUrlTable: function(serverUrls) {
+        refreshUrlTable: function (serverUrls) {
             return refreshServerUrls(serverUrls);
         },
 
@@ -355,7 +356,7 @@ module.exports = function (serverURLs, allowedReferrers, logFunction) {
          * resolve with the array of database rows, each row is an object.
          * @returns {Promise}
          */
-        databaseDump: function() {
+        databaseDump: function () {
             return allRowsAsArray();
         }
     }

@@ -19,7 +19,7 @@ const defaultConfigurationRootPath = ''; // when run from npm command line
 const defaultConfigurationFilePath = 'conf';
 const defaultConfigurationFileName = 'config';
 const defaultConfigurationTestFileName = 'config-test';
-const defaultConfigurationFileType = 'xml';
+const defaultConfigurationFileType = 'json';
 const defaultOAuthEndpoint = 'https://www.arcgis.com/sharing/oauth2/';
 
 var configuration = {
@@ -189,16 +189,15 @@ function postParseConfigurationFile(json, schema) {
     if (json !== null) {
         if (schema == 'json') {
             proxyConfigSection = json.ProxyConfig;
-            if (proxyConfigSection === undefined) {
+            if (!proxyConfigSection) {
                 proxyConfigSection = json.proxyConfig;
-            } else {
-                proxyConfigSection = null;
-            }
+            } 
         } else if (schema === 'xml') {
             proxyConfigSection = json.ProxyConfig['$'];
         } else {
             proxyConfigSection = null;
         }
+        
         if (proxyConfigSection !== undefined && proxyConfigSection !== undefined) {
             if (proxyConfigSection.language !== undefined && proxyConfigSection.language != 'en') {
                 languageFile = defaultRequireRootPath + defaultConfigurationFilePath + '/' + proxyConfigSection.language + '.json';
@@ -247,6 +246,15 @@ function postParseConfigurationFile(json, schema) {
                 }
             } else {
                 configuration.logToConsole = false;
+            }
+            if (proxyConfigSection.logToFile !== undefined) {
+                if (typeof proxyConfigSection.logToFile === 'string') {
+                    configuration.logToFile = proxyConfigSection.logToFile.toLocaleLowerCase().trim() === 'true' || proxyConfigSection.logToFile === '1';
+                } else {
+                    configuration.logToFile = proxyConfigSection.logToFile == true;
+                }
+            } else {
+                configuration.logToFile = false;
             }
             if (proxyConfigSection.logFile !== undefined) {
                 configuration.logFileName = proxyConfigSection.logFile;
@@ -351,7 +359,7 @@ function postParseConfigurationFile(json, schema) {
                 configuration.localStatusURL = proxyConfigSection.statusPath;
             }
             if (proxyConfigSection.staticFilePath !== undefined) {
-                configuration.staticFilePath = defaultConfigurationRootPath + proxyConfigSection.staticFilePath;
+                configuration.staticFilePath = defaultConfigurationRootPath ? defaultConfigurationRootPath : path.dirname(require.main.path) + proxyConfigSection.staticFilePath;
                 if ( ! fs.existsSync(configuration.staticFilePath)) {
                     configuration.staticFilePath = null;
                     console.log(getStringTableEntry('Invalid static file path', {path: proxyConfigSection.staticFilePath}));

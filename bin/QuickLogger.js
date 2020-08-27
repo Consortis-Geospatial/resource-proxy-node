@@ -3,21 +3,23 @@
  * Created on 8/24/16.
  */
 
-const fs = require('fs');
+const fs = require('fs'),
+    config = require('../conf/config.json');
 
 var defaultLogFileName = 'arcgis-proxy.txt',
-    logFileName = 'arcgis-proxy-node.log',
-    logToConsole = true,
-    logLevelValue = 9;
+    logFileName = config.ProxyConfig.logFile || 'arcgis-proxy-node.log',
+    logToConsole = config.ProxyConfig.logToConsole,
+    logToFile = config.ProxyConfig.logToFile,
+    logLevelValue = config.ProxyConfig.logLevel || 'NONE';
 
 
 // LOGLEVELs control what type of logging will appear in the log file and on the console.
 module.exports.LOGLEVEL = {
-    ALL:   {label: "ALL",   value: 9, key: "A"},
-    INFO:  {label: "INFO",  value: 5, key: "I"},
-    WARN:  {label: "WARN",  value: 4, key: "W"},
-    ERROR: {label: "ERROR", value: 3, key: "E"},
-    NONE:  {label: "NONE",  value: 0, key: "X"}
+    ALL: { label: "ALL", value: 9, key: "A" },
+    INFO: { label: "INFO", value: 5, key: "I" },
+    WARN: { label: "WARN", value: 4, key: "W" },
+    ERROR: { label: "ERROR", value: 3, key: "E" },
+    NONE: { label: "NONE", value: 0, key: "X" }
 };
 
 /**
@@ -26,7 +28,7 @@ module.exports.LOGLEVEL = {
  * @param logLevelLabel
  * @returns {boolean}
  */
-module.exports.ifLogLevelGreaterOrEqual = function(logLevelLabel) {
+module.exports.ifLogLevelGreaterOrEqual = function (logLevelLabel) {
     var logInfo = this.getLogLevelInfoFromLabel(logLevelLabel);
     if (logInfo != null) {
         return logInfo.value >= logLevelValue;
@@ -47,12 +49,12 @@ module.exports.ifLogLevelGreaterOrEqual = function(logLevelLabel) {
  * @param configuration {object} see above.
  * @returns {boolean} true if a valid configuration is consumed, false if something is invalid and we cannot function.
  */
-module.exports.setConfiguration = function(configuration) {
+module.exports.setConfiguration = function (configuration) {
     var logFilepath,
         logLevelInfo,
         isValid = false;
-
-    logToConsole = configuration.logConsole !== undefined ? configuration.logConsole == true : false;
+    logToConsole = configuration.logToConsole;
+    logToFile = configuration.logToFile;
     logLevelValue = configuration.logLevel !== undefined ? configuration.logLevel : this.LOGLEVEL.NONE.value;
     if (configuration.logFilePath != null || configuration.logFileName != null) {
         if (configuration.logFilePath == null) {
@@ -91,7 +93,7 @@ module.exports.setConfiguration = function(configuration) {
  * Helper function to log an INFO level event.
  * @param message
  */
-module.exports.logInfoEvent = function(message) {
+module.exports.logInfoEvent = function (message) {
     this.logEvent(this.LOGLEVEL.INFO.value, message);
 };
 
@@ -99,7 +101,7 @@ module.exports.logInfoEvent = function(message) {
  * Helper function to log an WARN level event.
  * @param message
  */
-module.exports.logWarnEvent = function(message) {
+module.exports.logWarnEvent = function (message) {
     this.logEvent(this.LOGLEVEL.WARN.value, message);
 };
 
@@ -107,7 +109,7 @@ module.exports.logWarnEvent = function(message) {
  * Helper function to log an ERROR level event.
  * @param message
  */
-module.exports.logErrorEvent = function(message) {
+module.exports.logErrorEvent = function (message) {
     this.logEvent(this.LOGLEVEL.ERROR.value, message);
 };
 
@@ -119,19 +121,19 @@ module.exports.logErrorEvent = function(message) {
  *            is less than the configuration log level then this event is not logged.
  * @param message {string} the message to write to the log file.
  */
-module.exports.logEvent = function(logLevelForMessage, message) {
-    if (logLevelForMessage <= logLevelValue) {
+module.exports.logEvent = function (logLevelForMessage, message) {
+    if (logToFile && logLevelForMessage <= logLevelValue) {
         if (logFileName != null) {
-            fs.appendFile(logFileName, this.formatLogMessage(this.formatLogLevelKey(logLevelForMessage) + message), {flag: 'a'}, function (error) {
+            fs.appendFile(logFileName, this.formatLogMessage(this.formatLogLevelKey(logLevelForMessage) + message), { flag: 'a' }, function (error) {
                 if (error != null) {
                     console.log('*** Error writing to log file ' + logFileName + ": " + error.toString());
                     throw error;
                 }
             });
         }
-        if (logToConsole) {
-            console.log(message);
-        }
+    }
+    if (logToConsole && logLevelForMessage <= logLevelValue) {
+        console.log(message);
     }
 };
 
@@ -140,7 +142,7 @@ module.exports.logEvent = function(logLevelForMessage, message) {
  * @param message
  * @returns {string}
  */
-module.exports.formatLogMessage = function(message) {
+module.exports.formatLogMessage = function (message) {
     var today = new Date();
     return today.toISOString() + ": " + message.toString() + '\n';
 };
@@ -151,7 +153,7 @@ module.exports.formatLogMessage = function(message) {
  * @param logLevel
  * @returns {String} Log level identifier key with formatting.
  */
-module.exports.formatLogLevelKey = function(logLevel) {
+module.exports.formatLogLevelKey = function (logLevel) {
     var logInfo = this.getLogLevelInfoFromValue(logLevel);
     if (logInfo != null) {
         return '[' + logInfo.key + '] ';
@@ -165,7 +167,7 @@ module.exports.formatLogLevelKey = function(logLevel) {
  * @param logLevelValue the integer value of the log level we are interested in.
  * @returns {*} Object if match, null if undefined log level value.
  */
-module.exports.getLogLevelInfoFromValue = function(logLevelValue) {
+module.exports.getLogLevelInfoFromValue = function (logLevelValue) {
     var logInfoKey,
         logInfo;
 
@@ -185,7 +187,7 @@ module.exports.getLogLevelInfoFromValue = function(logLevelValue) {
  * @param logLevelLabel the string label of the log level we are interested in.
  * @returns {*} Object if match, null if undefined log level value.
  */
-module.exports.getLogLevelInfoFromLabel = function(logLevelLabel) {
+module.exports.getLogLevelInfoFromLabel = function (logLevelLabel) {
     var logInfoKey,
         logInfo;
 
@@ -205,21 +207,21 @@ module.exports.getLogLevelInfoFromLabel = function(logLevelLabel) {
  * @param logLevelForMessage {int} logging level for this message.
  * @param message {string} a message to show in the log.
  */
-module.exports.logEventImmediately = function(logLevelForMessage, message) {
-    if (logLevelForMessage <= logLevelValue) {
+module.exports.logEventImmediately = function (logLevelForMessage, message) {
+    if (logToFile && logLevelForMessage <= logLevelValue) {
         if (logFileName != null) {
             fs.appendFileSync(logFileName, this.formatLogMessage(message));
         }
-        if (logToConsole) {
-            console.log(message);
-        }
+    }
+    if (logToConsole && logLevelForMessage <= logLevelValue) {
+        console.log(message);
     }
 };
 
 /**
  * Return size of the log file.
  */
-module.exports.getLogFileSize = function() {
+module.exports.getLogFileSize = function () {
     var fstatus,
         result;
 
