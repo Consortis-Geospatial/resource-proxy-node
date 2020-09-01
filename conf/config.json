@@ -8,7 +8,7 @@
         "logToConsole": true,
         "logToFile": false,
         "logFile": "evrymap-proxy-node.log",
-        "logFilePath": "C:/Consortis Projects/Proxy Server",
+        "logFilePath": "C:/Consortis/Proxy Server",
         "listenURI": ["/proxy", "/sproxy"],
         "pingPath": "/ping",
         "statusPath": "/status",

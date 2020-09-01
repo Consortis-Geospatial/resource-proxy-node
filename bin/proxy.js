@@ -62,6 +62,7 @@ var errorProcessedRequests = 0;
 var configurationComplete = false;
 var waitingToRunIntegrationTests = false;
 
+require('dotenv').config();
 
 /**
  * Look up the urlRequested in the serverUrls configuration and return the matching object.
@@ -879,7 +880,9 @@ function checkRateMeterThenProcessValidatedRequest(referrer, requestParts, serve
  * @param response
  */
 function processRequest(request, response) {
-    var requestParts = UrlFlexParser.parseURLRequest(request.url, configuration.listenURI),
+    // IIS is remove one slash when url has double slashes
+    const requestUrl = !request.url.includes('http://') ? request.url.replace('http:/', 'http://') : request.url;
+    var requestParts = UrlFlexParser.parseURLRequest(requestUrl, configuration.listenURI),
         serverURLInfo,
         referrer;
 

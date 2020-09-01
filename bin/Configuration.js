@@ -50,7 +50,7 @@ var configurationComplete = false;
  * Look at the command line for any configuration overrides.
  */
 function parseCommandLineOptions() {
-    process.argv.forEach(function(value, index) {
+    process.argv.forEach(function (value, index) {
         console.log('argv[' + index + ']: ' + value);
         if (value == 'test') {
             configuration.testMode = true;
@@ -65,7 +65,7 @@ function parseCommandLineOptions() {
  * @param serverURLInfo {object} the server URL definition to check.
  * @returns {boolean}
  */
-function isUserLogin (serverURLInfo) {
+function isUserLogin(serverURLInfo) {
     if (serverURLInfo != null) {
         return serverURLInfo.username !== undefined && serverURLInfo.username.trim().length > 0 && serverURLInfo.password !== undefined && serverURLInfo.password.trim().length > 0;
     } else {
@@ -79,7 +79,7 @@ function isUserLogin (serverURLInfo) {
  * @param serverURLInfo {object} the server URL definition to check.
  * @returns {boolean}
  */
-function isAppLogin (serverURLInfo) {
+function isAppLogin(serverURLInfo) {
     if (serverURLInfo != null) {
         return serverURLInfo.clientid !== undefined && serverURLInfo.clientid.trim().length > 0 && serverURLInfo.clientsecret !== undefined && serverURLInfo.clientsecret.trim().length > 0;
     } else {
@@ -120,7 +120,7 @@ function getStringTableEntry(key, tokens) {
  * written to the log file and the server is not started.
  * @returns {boolean} true if valid enough.
  */
-function isConfigurationValid () {
+function isConfigurationValid() {
     var isValid,
         serverUrl,
         i;
@@ -144,11 +144,11 @@ function isConfigurationValid () {
         QuickLogger.logErrorEvent(getStringTableEntry('You must configure one serverUrl', null));
         isValid = false;
     } else {
-        for (i = 0; i < configuration.serverUrls.length; i ++) {
+        for (i = 0; i < configuration.serverUrls.length; i++) {
             serverUrl = configuration.serverUrls[i];
             if (serverUrl.errorMessage != '') {
                 isValid = false;
-                QuickLogger.logErrorEvent(getStringTableEntry('Error in server URL definition', {url: serverUrl.url, error: serverUrl.errorMessage}));
+                QuickLogger.logErrorEvent(getStringTableEntry('Error in server URL definition', { url: serverUrl.url, error: serverUrl.errorMessage }));
             }
         }
     }
@@ -191,13 +191,33 @@ function postParseConfigurationFile(json, schema) {
             proxyConfigSection = json.ProxyConfig;
             if (!proxyConfigSection) {
                 proxyConfigSection = json.proxyConfig;
-            } 
+            }
         } else if (schema === 'xml') {
             proxyConfigSection = json.ProxyConfig['$'];
         } else {
             proxyConfigSection = null;
         }
-        
+
+        proxyConfigSection.language = process.env.LANGUAGE || proxyConfigSection.language;
+        proxyConfigSection.useHTTPS = process.env.USE_HTTPS || proxyConfigSection.useHTTPS;
+        proxyConfigSection.port = process.env.PORT || proxyConfigSection.port;
+        proxyConfigSection.mustMatch = process.env.MUST_MATCH || proxyConfigSection.mustMatch;
+        proxyConfigSection.matchAllReferrer = process.env.MATCH_ALL_REFERRER || proxyConfigSection.matchAllReferrer;
+        proxyConfigSection.logToConsole = process.env.LOG_TO_CONSOLE || proxyConfigSection.logToConsole;
+        proxyConfigSection.logToFile = process.env.LOG_TO_FILE || proxyConfigSection.logToFile;
+        proxyConfigSection.logFile = process.env.LOG_FILE || proxyConfigSection.logFile;
+        proxyConfigSection.logFilePath = process.env.LOG_FILE_PATH || proxyConfigSection.logFilePath;
+        proxyConfigSection.logLevel = process.env.LOG_LEVEL || proxyConfigSection.logLevel;
+        proxyConfigSection.allowedReferers = process.env.ALLOWED_REFERERS || proxyConfigSection.allowedReferers;
+        proxyConfigSection.httpsKeyFile = process.env.HTTPS_KEY_FILE || proxyConfigSection.httpsKeyFile;
+        proxyConfigSection.httpsCertificateFile = process.env.HTTPS_CERTIFICATE_FILE || proxyConfigSection.httpsCertificateFile;
+        proxyConfigSection.httpsPfxFile = process.env.HTTPS_PFX_FILE || proxyConfigSection.httpsPfxFile;
+        proxyConfigSection.listenURI = process.env.LISTEN_URI || proxyConfigSection.listenURI;
+        proxyConfigSection.pingPath = process.env.PING_PATH || proxyConfigSection.pingPath;
+        proxyConfigSection.echoPath = process.env.ECHO_PATH || proxyConfigSection.echoPath;
+        proxyConfigSection.statusPath = process.env.STATUS_PATH || proxyConfigSection.statusPath;
+        proxyConfigSection.staticFilePath = process.env.STATIC_FILE_PATH || proxyConfigSection.staticFilePath;
+
         if (proxyConfigSection !== undefined && proxyConfigSection !== undefined) {
             if (proxyConfigSection.language !== undefined && proxyConfigSection.language != 'en') {
                 languageFile = defaultRequireRootPath + defaultConfigurationFilePath + '/' + proxyConfigSection.language + '.json';
@@ -276,7 +296,7 @@ function postParseConfigurationFile(json, schema) {
                     }
                 }
                 if (invalidSetting) {
-                    console.log(getStringTableEntry('Undefined logging level', {level: proxyConfigSection.logLevel}));
+                    console.log(getStringTableEntry('Undefined logging level', { level: proxyConfigSection.logLevel }));
                 }
             } else {
                 console.log(getStringTableEntry('No logging level requested', null));
@@ -303,7 +323,7 @@ function postParseConfigurationFile(json, schema) {
                 }
                 // make a cache of the allowed referrers so checking at runtime is easier and avoids parsing the referrer on each lookup
                 configuration.allowedReferrers = [];
-                for (i = 0; i < allowedReferrers.length; i ++) {
+                for (i = 0; i < allowedReferrers.length; i++) {
                     referrerValidated = {
                         protocol: '*',
                         hostname: '*',
@@ -360,9 +380,9 @@ function postParseConfigurationFile(json, schema) {
             }
             if (proxyConfigSection.staticFilePath !== undefined) {
                 configuration.staticFilePath = defaultConfigurationRootPath ? defaultConfigurationRootPath : path.dirname(require.main.path) + proxyConfigSection.staticFilePath;
-                if ( ! fs.existsSync(configuration.staticFilePath)) {
+                if (!fs.existsSync(configuration.staticFilePath)) {
                     configuration.staticFilePath = null;
-                    console.log(getStringTableEntry('Invalid static file path', {path: proxyConfigSection.staticFilePath}));
+                    console.log(getStringTableEntry('Invalid static file path', { path: proxyConfigSection.staticFilePath }));
                 }
             }
         }
@@ -399,7 +419,7 @@ function postParseConfigurationFile(json, schema) {
                 serverUrls = [serverUrlsSection]; // if single object make it an array of 1
             }
             // iterate the array of services and validate individual settings
-            for (i = 0; i < serverUrls.length; i ++) {
+            for (i = 0; i < serverUrls.length; i++) {
                 serverUrl = serverUrls[i];
                 if (schema == 'xml' && serverUrl['$'] !== undefined) {
                     // the xml parser put attributes in a dummy object "$"
@@ -481,7 +501,7 @@ function postParseConfigurationFile(json, schema) {
                     } else if (serverUrl.parameterOverride == 'config' || serverUrl.parameterOverride == 'configuration' || serverUrl.parameterOverride == 'false' || serverUrl.parameterOverride == '0') {
                         serverUrl.parameterOverride = false;
                     } else {
-                        serverUrl.errorMessage = getStringTableEntry('unexpected value for parameterOverride', {value: serverUrl.parameterOverride});
+                        serverUrl.errorMessage = getStringTableEntry('unexpected value for parameterOverride', { value: serverUrl.parameterOverride });
                         serverUrl.parameterOverride = false;
                     }
                 } else {
@@ -533,7 +553,7 @@ function postParseConfigurationFile(json, schema) {
  * file is loaded or processed.
  * @param configFile {string} path to the configuration file.
  */
-function loadConfigurationFile (configFile) {
+function loadConfigurationFile(configFile) {
     var promise,
         stringTablePath;
 
@@ -544,7 +564,7 @@ function loadConfigurationFile (configFile) {
         var currentPath = path.dirname(fs.realpathSync(__filename));
         QuickLogger.logErrorEvent('Cannot load strings table from ' + stringTablePath + ' from ' + currentPath);
     }
-    promise = new Promise(function(resolvePromise, rejectPromise) {
+    promise = new Promise(function (resolvePromise, rejectPromise) {
         if (configFile == undefined || configFile == null || configFile.length == 0) {
             if (configuration.testMode) {
                 configFile = joinPath(defaultConfigurationRootPath + defaultConfigurationFilePath, defaultConfigurationTestFileName);
@@ -555,7 +575,7 @@ function loadConfigurationFile (configFile) {
                 configFile += '.' + defaultConfigurationFileType;
             }
         }
-        QuickLogger.logInfoEvent(getStringTableEntry('Loading configuration from', {file: configFile}));
+        QuickLogger.logInfoEvent(getStringTableEntry('Loading configuration from', { file: configFile }));
         if (ProjectUtilities.isFileTypeJson(configFile)) {
             loadJsonFile(configFile).then(function (jsonObject) {
                 postParseConfigurationFile(jsonObject, 'json');
@@ -566,11 +586,11 @@ function loadConfigurationFile (configFile) {
                     rejectPromise(new Error(getStringTableEntry('Configuration file not valid', null)));
                 }
             }, function (error) {
-                QuickLogger.logErrorEvent(getStringTableEntry('Invalid configuration file format', {error: error.toString()}));
+                QuickLogger.logErrorEvent(getStringTableEntry('Invalid configuration file format', { error: error.toString() }));
             });
         } else {
             var xmlParser = new xml2js.Parser();
-            fs.readFile(configFile, function(fileError, xmlData) {
+            fs.readFile(configFile, function (fileError, xmlData) {
                 if (fileError == null) {
                     xmlParser.parseString(xmlData, function (xmlError, xmlObject) {
                         if (xmlError == null) {

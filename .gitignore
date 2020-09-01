@@ -49,3 +49,5 @@ node_modules/
 # Test configurations
 config-test.xml
 config-test.json
+
+.env

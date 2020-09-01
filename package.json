@@ -29,14 +29,15 @@
         "body-parser": "latest",
         "bufferhelper": "latest",
         "connect": "latest",
+        "cors": "^2.8.5",
+        "dotenv": "^8.2.0",
         "http-proxy": "latest",
         "load-json-file": "^2.0.0",
         "node-static": "latest",
         "os": "latest",
         "path.join": "latest",
         "sqlite3": "latest",
-        "xml2js": "^0.4.17",
-        "cors": "^2.8.5"
+        "xml2js": "^0.4.17"
     },
     "devDependencies": {},
     "scripts": {
