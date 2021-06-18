@@ -68,7 +68,28 @@ The proxy consists of the following files:
 * `conf/config.xml`: This file contains the [configuration settings for the proxy](https://github.com/Esri/resource-proxy/#proxy-configuration-settings). This is where you define all the resources that are allowed to use the proxy.
 * `node_modules/`: after you run `npm install` this folder holds all the node dependencies.
 * `bin/`: folder containing the proxy runtime scripts.
-
+* `.env`: if added to the root folder, the .env configuration overides the configuration of config.json
+```
+NODE_ENV=production
+PORT=1000
+LANGUAGE=en
+USE_HTTPS=false
+MUST_MATCH=false
+LOG_TO_CONSOLE=true
+LOG_TO_FILE=false
+LOG_FILE=evrymap-proxy-node.log
+LOG_FILE_PATH=C:/Consortis Projects/Proxy Server
+LOG_LEVEL=ALL
+ALLOWED_REFERERS=
+HTTPS_KEY_FILE=
+HTTPS_CERTIFICATE_FILE=
+HTTPS_PFX_FILE=
+LISTEN_URI=
+PING_PATH=
+ECHO_PATH=
+STATUS_PATH=
+STATIC_FILE_PATH=
+```
 ## Running your proxy server
 
 Follow these instructions to setup and operate your proxy server.
